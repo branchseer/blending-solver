@@ -8,7 +8,6 @@
   }
 
   function solve(sample1: Sample, sample2: Sample): Solution {
-    console.log(sample1, sample2)
     const solutions = new Array<keyof ColorFormats.RGB>('r', 'g', 'b').map((componentName) => {
       const cb1 = sample1.backgroundColor[componentName] / 255
       const cb2 = sample2.backgroundColor[componentName] / 255
@@ -23,7 +22,6 @@
       if (ca < 0 || ca > 1 || aa < 0 || aa > 1) {
         throw new Error('Composited color is not possible to be blended from backgroud color')
       }
-      console.log(componentName, aa);
       return { aa, ca }
     })
     const aaAverage = solutions.reduce((prev, cur) => prev + cur.aa, 0) / solutions.length
@@ -31,7 +29,6 @@
       solutions.reduce((prev, cur) => prev + Math.pow(cur.aa - aaAverage, 2), 0) /
       (solutions.length - 1)
     )
-    console.log(solutions)
     return {
       color: tinycolor({
         r: solutions[0].ca * 255,
@@ -47,8 +44,6 @@
   import SampleInput from "./lib/SampleInput.svelte";
   import RGBAViewer from "./lib/RGBAViewer.svelte";
   import tinycolor from 'tinycolor2';
-  import type { Instance } from 'tinycolor2';
-import { prevent_default } from "svelte/internal";
 
   let sample1: Sample = {
     backgroundColor: tinycolor('#ffffff').toRgb(),
@@ -60,7 +55,7 @@ import { prevent_default } from "svelte/internal";
   }
 
   let solution: Solution
-  let error: string | null;
+  let error: any
   $: {
     try {
       solution = solve(sample1, sample2)

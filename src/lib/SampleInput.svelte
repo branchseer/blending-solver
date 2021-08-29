@@ -10,9 +10,11 @@
   export let value: Sample
   let backgroundColorString = tinycolor(value.backgroundColor).toHexString()
   let compositedColorString = tinycolor(value.compositedColor).toHexString()
-  $: value = { 
-    backgroundColor: tinycolor(backgroundColorString).toRgb(),
-    compositedColor: tinycolor(compositedColorString).toRgb()
+  $: {
+    value = { 
+      backgroundColor: tinycolor(backgroundColorString).toRgb(),
+      compositedColor: tinycolor(compositedColorString).toRgb()
+    }
   }
 </script>
 

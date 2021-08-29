@@ -1,41 +1,56 @@
 <script lang="ts" context="module">
   import type { Sample } from "./lib/SampleInput.svelte";
-  import type { ColorFormats } from "tinycolor2";
+  import type { ColorFormats, Instance } from "tinycolor2";
 
   interface Solution {
-    color: tinycolor.Instance,
-    std: number
+    color: Instance,
+    std: ColorFormats.RGBA
   }
 
+  const rgbaZero: ColorFormats.RGBA = { r: 0, g: 0, b: 0, a: 0}
+
+  const colorComponentNames: Array<keyof ColorFormats.RGB> = ['r', 'g', 'b'];
+
   function solve(sample1: Sample, sample2: Sample): Solution {
-    const solutions = new Array<keyof ColorFormats.RGB>('r', 'g', 'b').map((componentName) => {
+    const alphaSolutions = colorComponentNames.flatMap((componentName) => {
       const cb1 = sample1.backgroundColor[componentName] / 255
       const cb2 = sample2.backgroundColor[componentName] / 255
       const co1 = sample1.compositedColor[componentName] / 255
       const co2 = sample2.compositedColor[componentName] / 255
 
       if (cb1 === cb2) {
-        throw new Error('Backgroud colors cannot have the same coresponding component values')
+        return []
       }
-      const aa = 1 - (co1 - co2) / (cb1 - cb2)
-      const ca = (co1 - (cb1 * (1 - aa))) / aa
-      if (ca < 0 || ca > 1 || aa < 0 || aa > 1) {
-        throw new Error('Composited color is not possible to be blended from backgroud color')
+      const alpha = 1 - (co1 - co2) / (cb1 - cb2)
+      if (alpha > 1 || alpha < 0) {
+        throw new Error(`Alpha(${alpha.toPrecision(3)}) calculated from "${componentName}" is not between 0 and 1`)
       }
-      return { aa, ca }
+      return [alpha]
     })
-    const aaAverage = solutions.reduce((prev, cur) => prev + cur.aa, 0) / solutions.length
-    const std = Math.sqrt(
-      solutions.reduce((prev, cur) => prev + Math.pow(cur.aa - aaAverage, 2), 0) /
-      (solutions.length - 1)
+    if (alphaSolutions.length === 0) {
+      throw new Error('Backgroud colors cannot be the same')
+    }
+    const avgAlpha = alphaSolutions.reduce((prev, cur) => prev + cur, 0) / alphaSolutions.length
+    const alphaStd = alphaSolutions.length === 1 ? 0 : Math.sqrt(
+      alphaSolutions.reduce((prev, cur) => prev + Math.pow(cur - avgAlpha, 2), 0) /
+      (alphaSolutions.length - 1)
     )
+    const color = { ...rgbaZero, a: avgAlpha}
+    const std= { ...rgbaZero, a: alphaStd}
+    for (const componentName of colorComponentNames) {
+      const cb1 = sample1.backgroundColor[componentName] / 255
+      const cb2 = sample2.backgroundColor[componentName] / 255
+      const co1 = sample1.compositedColor[componentName] / 255
+      const co2 = sample2.compositedColor[componentName] / 255
+
+      const ca1 = (co1 - cb1 * (1 - avgAlpha)) / avgAlpha
+      const ca2 = (co2 - cb2 * (1 - avgAlpha)) / avgAlpha
+
+      color[componentName] = (ca1 + ca2) / 2 * 255
+      std[componentName] = Math.abs(ca1 - ca2)
+    }
     return {
-      color: tinycolor({
-        r: solutions[0].ca * 255,
-        g: solutions[1].ca * 255,
-        b: solutions[2].ca * 255,
-        a: aaAverage
-      }),
+      color: tinycolor(color),
       std
     }
   }
@@ -47,11 +62,11 @@
 
   let sample1: Sample = {
     backgroundColor: tinycolor('#ffffff').toRgb(),
-    compositedColor: tinycolor('#aaccef').toRgb()
+    compositedColor: tinycolor('#aaccee').toRgb()
   }
   let sample2: Sample = {
-    backgroundColor: tinycolor('#e6e3e4').toRgb(),
-    compositedColor: tinycolor('#9abbde').toRgb()
+    backgroundColor: tinycolor('#cce8ff').toRgb(),
+    compositedColor: tinycolor('#88bdee').toRgb()
   }
 
   let solution: Solution
@@ -62,11 +77,11 @@
       error = null
     }
     catch (err) {
-      error = err
       solution = {
-        color: tinycolor('#00000000'),
-        std: 0
+        color: tinycolor(rgbaZero),
+        std: rgbaZero
       }
+      error = err
     }
   }
   
@@ -89,7 +104,12 @@
       {#if error == null}
         { solution.color.toHex8String() }<br />
         { solution.color.toRgbString() } <br />
-        Standard deviation: { solution.std.toPrecision(3) }
+        Standard deviation:
+          rgba({ solution.std.r.toPrecision(3) },
+          { solution.std.g.toPrecision(3) },
+          { solution.std.b.toPrecision(3) },
+          { solution.std.a.toPrecision(3) }
+          )
       {:else}
         {error}
       {/if}

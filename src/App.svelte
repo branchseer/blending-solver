@@ -12,16 +12,25 @@
   const colorComponentNames: Array<keyof ColorFormats.RGB> = ['r', 'g', 'b'];
 
   function solve(sample1: Sample, sample2: Sample): Solution {
+    function normalize(val: number): number {
+      if (val < 0 && val > -1e-3) {
+        return 0
+      }
+      if (val > 1 && val - 1 < 1e-3) {
+        return 1
+      }
+      return val
+    }
     const alphaSolutions = colorComponentNames.flatMap((componentName) => {
       const cb1 = sample1.backgroundColor[componentName] / 255
       const cb2 = sample2.backgroundColor[componentName] / 255
       const co1 = sample1.compositedColor[componentName] / 255
       const co2 = sample2.compositedColor[componentName] / 255
 
-      if (cb1 === cb2) {
+      if (Math.abs(cb1 - cb2) < 1e-6 || Math.abs(co1 - co2) < 1e-6) {
         return []
       }
-      const alpha = 1 - (co1 - co2) / (cb1 - cb2)
+      let alpha = normalize(1 - (co1 - co2) / (cb1 - cb2))
       if (alpha > 1 || alpha < 0) {
         throw new Error(`Alpha(${alpha.toPrecision(3)}) calculated from "${componentName}" is not between 0 and 1`)
       }
@@ -45,8 +54,12 @@
 
       const ca1 = (co1 - cb1 * (1 - avgAlpha)) / avgAlpha
       const ca2 = (co2 - cb2 * (1 - avgAlpha)) / avgAlpha
+      const ca = normalize((ca1 + ca2) / 2)
+      if (ca > 1 || ca < 0) {
+        throw new Error(`"${componentName}" value (${ca}) is not between 0 and 1`)
+      }
 
-      color[componentName] = (ca1 + ca2) / 2 * 255
+      color[componentName] = ca * 255
       std[componentName] = Math.abs(ca1 - ca2)
     }
     return {
